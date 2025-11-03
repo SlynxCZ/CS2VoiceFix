@@ -27,14 +27,11 @@ target("CS2VoiceFix")
         "protobufs/generated/gcsdk_gcmessages.pb.cc",
         "protobufs/generated/cstrike15_gcmessages.pb.cc",
         "protobufs/generated/cstrike15_usermessages.pb.cc",
-        "protobufs/generated/usercmd.pb.cc",
-        "protobufs/generated/cs_usercmd.pb.cc",
         "protobufs/generated/netmessages.pb.cc",
     })
 
     if is_plat("windows") then
         add_links({
-            SDK_PATH.."/lib/public/win64/2015/libprotobuf.lib",
             SDK_PATH.."/lib/public/win64/tier0.lib",
             SDK_PATH.."/lib/public/win64/tier1.lib",
             SDK_PATH.."/lib/public/win64/interfaces.lib",
@@ -42,14 +39,11 @@ target("CS2VoiceFix")
         })
     else
         add_links({
-            SDK_PATH.."/lib/linux64/release/libprotobuf.a",
             SDK_PATH.."/lib/linux64/libtier0.so",
             SDK_PATH.."/lib/linux64/tier1.a",
             SDK_PATH.."/lib/linux64/interfaces.a",
             SDK_PATH.."/lib/linux64/mathlib.a",
         })
-
-        add_cxxflags("-lstdc++", "-Wno-register")
     end
 
     add_linkdirs({
@@ -90,7 +84,7 @@ target("CS2VoiceFix")
         MM_PATH.."/core/sourcehook",
     })
 
-    if(is_plat("windows")) then
+    if is_plat("windows") then
         add_defines({
             "COMPILER_MSVC",
             "COMPILER_MSVC64",
@@ -112,7 +106,11 @@ target("CS2VoiceFix")
             "COMPILER_GCC",
             "PLATFORM_64BITS",
             "META_IS_SOURCE2",
-            "_GLIBCXX_USE_CXX11_ABI=0"
+            "_GLIBCXX_USE_CXX11_ABI=1",
+            "stricmp=strcasecmp",
+            "_stricmp=strcasecmp",
+            "_snprintf=snprintf",
+            "_vsnprintf=vsnprintf"
         })
     end
     set_languages("cxx20")

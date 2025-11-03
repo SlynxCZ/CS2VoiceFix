@@ -182,7 +182,7 @@ const char *CS2VoiceFix::GetLicense()
 
 const char *CS2VoiceFix::GetVersion()
 {
-	return "1.0.1";
+	return "1.0.2";
 }
 
 const char *CS2VoiceFix::GetDate()
@@ -197,7 +197,7 @@ const char *CS2VoiceFix::GetLogTag()
 
 const char *CS2VoiceFix::GetAuthor()
 {
-	return "Poggu";
+	return "Poggu, Slynx";
 }
 
 const char *CS2VoiceFix::GetDescription()
@@ -212,5 +212,5 @@ const char *CS2VoiceFix::GetName()
 
 const char *CS2VoiceFix::GetURL()
 {
-	return "https://poggu.me";
+	return "https://poggu.me, https://slynxdev.cz";
 }
