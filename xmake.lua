@@ -2,15 +2,88 @@ add_rules("mode.debug", "mode.release")
 
 includes("@builtin/xpack")
 
+-- HL2SDK & Metamod Source paths from environment
 local SDK_PATH = os.getenv("HL2SDKCS2")
-local MM_PATH = os.getenv("MMSOURCE112")
+local MM_PATH  = os.getenv("MMSOURCE112")
+
+------------------------------------------------------
+-- PROTOBUFS TARGET (Generuje a buildí staticky)
+------------------------------------------------------
+
+target("Protobufs")
+    set_kind("static")
+
+    local protoc    = SDK_PATH .. "/devtools/bin/linux/protoc"
+    local proto_dir = "vendor/Protobufs/csgo"
+    local out_dir   = "protobufs/generated"
+
+    local protos = {
+        "network_connection.proto",
+        "networkbasetypes.proto",
+        "cs_gameevents.proto",
+        "engine_gcmessages.proto",
+        "gcsdk_gcmessages.proto",
+        "cstrike15_gcmessages.proto",
+        "cstrike15_usermessages.proto",
+        "netmessages.proto",
+        "steammessages.proto",
+        "usermessages.proto",
+        "gameevents.proto",
+        "clientmessages.proto",
+        "te.proto"
+    }
+
+    before_build(function (target)
+        for _, f in ipairs(protos) do
+            local in_path  = path.join(proto_dir, f)
+            local out_path = path.join(out_dir, path.basename(f) .. ".pb.cc")
+
+            local need_regen = false
+            if not os.exists(out_path) then
+                need_regen = true
+            else
+                local in_mtime  = os.mtime(in_path) or 0
+                local out_mtime = os.mtime(out_path) or 0
+                if in_mtime > out_mtime then
+                    need_regen = true
+                end
+            end
+
+            if need_regen then
+                cprint("${bright blue}[Protobuf]${clear} Generating " .. f)
+                os.execv(protoc, {
+                    "-I", SDK_PATH .. "/thirdparty/protobuf-3.21.8/src",
+                    "--proto_path=" .. proto_dir,
+                    "--cpp_out=" .. out_dir,
+                    in_path
+                })
+            end
+        end
+    end)
+
+    if os.isdir(out_dir) then
+        add_files(out_dir .. "/*.cc")
+    end
+
+    add_includedirs(out_dir, {public = true})
+    add_includedirs(SDK_PATH .. "/thirdparty/protobuf-3.21.8/src", {public = true})
+    add_links(SDK_PATH .. "/lib/linux64/release/libprotobuf.a")
+
+------------------------------------------------------
+-- MAIN PLUGIN TARGET
+------------------------------------------------------
 
 target("CS2VoiceFix")
     set_kind("shared")
+    set_symbols("hidden")
+    set_languages("cxx20")
+
+    add_deps("Protobufs")
+
     add_files("src/**.cpp")
     add_headerfiles("src/**.h")
-    set_symbols("hidden")
 
+    -- SDK source files required for linking
     add_files({
         SDK_PATH.."/tier1/convar.cpp",
         SDK_PATH.."/public/tier0/memoverride.cpp",
@@ -19,15 +92,6 @@ target("CS2VoiceFix")
         SDK_PATH.."/entity2/entityidentity.cpp",
         SDK_PATH.."/entity2/entitykeyvalues.cpp",
         SDK_PATH.."/tier1/keyvalues3.cpp",
-        "protobufs/generated/usermessages.pb.cc",
-        "protobufs/generated/network_connection.pb.cc",
-        "protobufs/generated/networkbasetypes.pb.cc",
-        "protobufs/generated/engine_gcmessages.pb.cc",
-        "protobufs/generated/steammessages.pb.cc",
-        "protobufs/generated/gcsdk_gcmessages.pb.cc",
-        "protobufs/generated/cstrike15_gcmessages.pb.cc",
-        "protobufs/generated/cstrike15_usermessages.pb.cc",
-        "protobufs/generated/netmessages.pb.cc",
     })
 
     if is_plat("windows") then
@@ -52,21 +116,22 @@ target("CS2VoiceFix")
 
     add_links({
         "funchook",
-        "distorm"
+        "distorm",
+        "protobufs"  -- static target defined above
     })
 
     if is_plat("windows") then
-        add_links("psapi");
-        add_files("src/utils/plat_win.cpp");
+        add_links("psapi")
+        add_files("src/utils/plat_win.cpp")
     else
-        add_files("src/utils/plat_unix.cpp");
+        add_files("src/utils/plat_unix.cpp")
     end
 
     add_includedirs({
         "src",
         "vendor/funchook/include",
         "vendor",
-        -- sdk
+        -- SDK includes
         SDK_PATH,
         SDK_PATH.."/thirdparty/protobuf-3.21.8/src",
         SDK_PATH.."/common",
@@ -79,7 +144,7 @@ target("CS2VoiceFix")
         SDK_PATH.."/public/tier1",
         SDK_PATH.."/public/entity2",
         SDK_PATH.."/public/game/server",
-        -- metamod
+        -- Metamod
         MM_PATH.."/core",
         MM_PATH.."/core/sourcehook",
     })
@@ -113,4 +178,3 @@ target("CS2VoiceFix")
             "_vsnprintf=vsnprintf"
         })
     end
-    set_languages("cxx20")

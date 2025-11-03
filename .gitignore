@@ -1,6 +1,8 @@
 # Xmake cache
 .xmake/
 build/
+protobufs/generated/**.cc
+protobufs/generated/**.h
 
 # MacOS Cache
 .DS_Store
