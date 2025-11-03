@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * CS2VoiceFix
- * Copyright (C) 2024 Poggu
+ * Copyright (C) 2025 Poggu & Slynx
  * =============================================================================
  *
  * This program is free software; you can redistribute it and/or modify it under
