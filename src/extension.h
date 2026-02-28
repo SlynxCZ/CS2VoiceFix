@@ -30,19 +30,9 @@ class CS2VoiceFix : public ISmmPlugin, public IMetamodListener
 public:
 	bool Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bool late);
 	bool Unload(char *error, size_t maxlen);
-	bool Pause(char *error, size_t maxlen);
-	bool Unpause(char *error, size_t maxlen);
-	void AllPluginsLoaded();
 public: //hooks
-	bool Hook_SendNetMessage(CNetMessage* pData, NetChannelBufType_t bufType);
 	void Hook_OnClientConnected(CPlayerSlot slot, const char* pszName, uint64 xuid, const char* pszNetworkID, const char* pszAddress, bool bFakePlayer);
-	void OnLevelInit( char const *pMapName,
-				 char const *pMapEntities,
-				 char const *pOldLevel,
-				 char const *pLandmarkName,
-				 bool loadGame,
-				 bool background );
-	void OnLevelShutdown();
+	void Hook_StartupServer(const GameSessionConfiguration_t& config, ISource2WorldSession*, const char*);
 public:
 	const char *GetAuthor();
 	const char *GetName();
@@ -56,6 +46,14 @@ public:
 
 extern CS2VoiceFix g_CS2VoiceFix;
 
+extern SourceHook::ISourceHook *source_hook;
+extern int source_hook_pluginid;
+
 PLUGIN_GLOBALVARS();
+
+#undef SH_GLOB_SHPTR
+#define SH_GLOB_SHPTR source_hook
+#undef SH_GLOB_PLUGPTR
+#define SH_GLOB_PLUGPTR source_hook_pluginid
 
 #endif //_INCLUDE_METAMOD_SOURCE_STUB_PLUGIN_H_

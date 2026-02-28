@@ -3,7 +3,8 @@ add_rules("mode.debug", "mode.release")
 includes("@builtin/xpack")
 
 local SDK_PATH = os.getenv("HL2SDKCS2")
-local MM_PATH = os.getenv("MMSOURCE112")
+local MM_PATH = os.getenv("MMSOURCE_DEV")
+local PROTO_PATH = os.getenv("CSGO_PROTO_DIR")
 
 target("CS2VoiceFix")
     set_kind("shared")
@@ -19,17 +20,17 @@ target("CS2VoiceFix")
         SDK_PATH.."/entity2/entityidentity.cpp",
         SDK_PATH.."/entity2/entitykeyvalues.cpp",
         SDK_PATH.."/tier1/keyvalues3.cpp",
-        "protobufs/generated/usermessages.pb.cc",
-        "protobufs/generated/network_connection.pb.cc",
-        "protobufs/generated/networkbasetypes.pb.cc",
-        "protobufs/generated/engine_gcmessages.pb.cc",
-        "protobufs/generated/steammessages.pb.cc",
-        "protobufs/generated/gcsdk_gcmessages.pb.cc",
-        "protobufs/generated/cstrike15_gcmessages.pb.cc",
-        "protobufs/generated/cstrike15_usermessages.pb.cc",
-        "protobufs/generated/usercmd.pb.cc",
-        "protobufs/generated/cs_usercmd.pb.cc",
-        "protobufs/generated/netmessages.pb.cc",
+        PROTO_PATH.."/usermessages.pb.cc",
+        PROTO_PATH.."/network_connection.pb.cc",
+        PROTO_PATH.."/networkbasetypes.pb.cc",
+        PROTO_PATH.."/engine_gcmessages.pb.cc",
+        PROTO_PATH.."/steammessages.pb.cc",
+        PROTO_PATH.."/gcsdk_gcmessages.pb.cc",
+        PROTO_PATH.."/cstrike15_gcmessages.pb.cc",
+        PROTO_PATH.."/cstrike15_usermessages.pb.cc",
+        PROTO_PATH.."/usercmd.pb.cc",
+        PROTO_PATH.."/cs_usercmd.pb.cc",
+        PROTO_PATH.."/netmessages.pb.cc",
     })
 
     if is_plat("windows") then

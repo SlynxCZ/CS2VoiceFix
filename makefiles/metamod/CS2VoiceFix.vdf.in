@@ -1,0 +1,5 @@
+"Metamod Plugin"
+{
+	"alias"	"CS2VoiceFix"
+	"file"	"addons/CS2VoiceFix/bin/${PROJECT_VDF_PLATFORM}/CS2VoiceFix"
+}

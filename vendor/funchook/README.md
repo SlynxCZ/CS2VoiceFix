@@ -26,6 +26,15 @@ News
 * Add `funchook_prepare_with_params()` to support prehook.
 * Add `funchook_get_arg()` to get arguments in prehook.
 
+### 1.1.3 (2023-06-04)
+
+* Fix build for Windows with raw MSC ([#45][])
+* Fix debug log format warnings by mingw-w64 compiler.
+
+### 1.1.2 (2023-03-12)
+
+* Experimental support for Windows arm64
+
 ### 1.1.1 (2022-10-02)
 
 * More permissive check for page allocation mmap ([#25][])
@@ -68,12 +77,20 @@ Supported Platforms
 
 *1 [`mprotect`] fails with EACCES.  
 
+Tested Platforms
+----------------
+
+Tested on some versions. Not tested in CI.
+
+* Windows arm64 (version 1.1.2)
+
 Unsupported Platforms
 ---------------------
 
 * macOS arm64 (*1)
+* x64/x86 emulation for Windows arm64
 
-*1 I received a mail that [`mprotect`] failed with `EINVAL`. Apple seems to prevent executable memory regions from being writable.
+*1 I received a mail that [`mprotect`] failed with `EINVAL`. This issue may be same with [#51][] and fixed by [this commit](https://github.com/kubo/funchook/commit/d5faee56e9fb0b7798754692ed4f1ed5579c4759).
 
 Compilation and installation
 -----------
@@ -130,7 +147,7 @@ Example
 static ssize_t (*send_func)(int sockfd, const void *buf, size_t len, int flags);
 static ssize_t (*recv_func)(int sockfd, void *buf, size_t len, int flags);
 
-static ssize_t send_hook(int sockfd, const void *buf, size_t len, int flags);
+static ssize_t send_hook(int sockfd, const void *buf, size_t len, int flags)
 {
     ssize_t rv;
 
@@ -140,7 +157,7 @@ static ssize_t send_hook(int sockfd, const void *buf, size_t len, int flags);
     return rv;
 }
 
-static ssize_t recv_hook(int sockfd, void *buf, size_t len, int flags);
+static ssize_t recv_hook(int sockfd, void *buf, size_t len, int flags)
 {
     ssize_t rv;
 
@@ -270,4 +287,6 @@ itself is under the GPL.
 [#30]: https://github.com/kubo/funchook/pull/30
 [#31]: https://github.com/kubo/funchook/pull/31
 [#32]: https://github.com/kubo/funchook/pull/32
+[#45]: https://github.com/kubo/funchook/pull/45
+[#51]: https://github.com/kubo/funchook/issues/51
 [`mprotect`]: https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/mprotect.2.html

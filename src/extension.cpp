@@ -20,14 +20,18 @@
 #include <stdio.h>
 #include "extension.h"
 #include <iserver.h>
+#include <sourcehook_impl.h>
+
 #include "utils/module.h"
 #include <schemasystem/schemasystem.h>
 #include <entity2/entitysystem.h>
 #include "interfaces.h"
 #include "networkstringtabledefs.h"
-#include "../protobufs/generated/netmessages.pb.h"
+#include "netmessages.pb.h"
 #include "networksystem/inetworkmessages.h"
-#include "cs2_sdk/serversideclient.h"
+#include "schema/serversideclient.h"
+
+#include "funchook.h"
 
 #ifdef _WIN32
 #define ROOTBIN "/bin/win64/"
@@ -40,17 +44,29 @@
 #undef max
 
 CS2VoiceFix g_CS2VoiceFix;
-int g_iSendNetMessage;
+
+SourceHook::Impl::CSourceHookImpl source_hook_impl;
+SourceHook::ISourceHook* source_hook = &source_hook_impl;
+
+int source_hook_pluginid = 0;
 uint64_t g_randomSeed = 0;
 
-SH_DECL_HOOK6_void(IServerGameClients, OnClientConnected, SH_NOATTRIB, 0, CPlayerSlot, const char*, uint64, const char*, const char*, bool);
+class GameSessionConfiguration_t
+{
+};
 
-#ifdef WIN32
-// WINDOWS
-SH_DECL_MANUALHOOK2(SendNetMessage, 15, 0, 0, bool, CNetMessage*, NetChannelBufType_t);
+SH_DECL_HOOK6_void(IServerGameClients, OnClientConnected, SH_NOATTRIB, 0, CPlayerSlot, const char*, uint64, const char*, const char*, bool);
+SH_DECL_HOOK3_void(INetworkServerService, StartupServer, SH_NOATTRIB, 0, const GameSessionConfiguration_t &, ISource2WorldSession *, const char *);
+
+typedef bool (FASTCALL *SendNetMessage_t)(CServerSideClient *, CNetMessage*, NetChannelBufType_t);
+bool FASTCALL Hook_SendNetMessage(CServerSideClient *pClient, CNetMessage *pData, NetChannelBufType_t bufType);
+SendNetMessage_t g_pfnSendNetMessage = nullptr;
+funchook_t *g_pSendNetMessageHook = nullptr;
+
+#ifdef PLATFORM_WINDOWS
+constexpr int g_iSendNetMessageOffset = 15;
 #else
-// LINUX
-SH_DECL_MANUALHOOK2(SendNetMessage, 16, 0, 0, bool, CNetMessage*, NetChannelBufType_t);
+constexpr int g_iSendNetMessageOffset = 16;
 #endif
 
 CGameEntitySystem* GameEntitySystem()
@@ -79,8 +95,12 @@ void SetupHook(CS2VoiceFix* plugin)
 {
 	CModule engineModule(ROOTBIN, "engine2");
 
-	auto serverSideClientVTable = engineModule.FindVirtualTable("CServerSideClient");
-	g_iSendNetMessage = SH_ADD_MANUALDVPHOOK(SendNetMessage, serverSideClientVTable, SH_MEMBER(plugin, &CS2VoiceFix::Hook_SendNetMessage), false);
+	void **pServerSideClientVTable = (void **)engineModule.FindVirtualTable("CServerSideClient");
+	g_pfnSendNetMessage = (SendNetMessage_t)pServerSideClientVTable[g_iSendNetMessageOffset];
+
+	g_pSendNetMessageHook = funchook_create();
+	funchook_prepare(g_pSendNetMessageHook, (void**)&g_pfnSendNetMessage, (void*)Hook_SendNetMessage);
+	funchook_install(g_pSendNetMessageHook, 0);
 }
 
 PLUGIN_EXPOSE(CS2VoiceFix, g_CS2VoiceFix);
@@ -98,6 +118,7 @@ bool CS2VoiceFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, b
 	g_SMAPI->AddListener( this, this );
 
 	SH_ADD_HOOK(IServerGameClients, OnClientConnected, Interfaces::gameclients, SH_MEMBER(this, &CS2VoiceFix::Hook_OnClientConnected), false);
+	SH_ADD_HOOK(INetworkServerService, StartupServer, g_pNetworkServerService, SH_MEMBER(this, &CS2VoiceFix::Hook_StartupServer), true);
 
 	SetupHook(this);
 
@@ -113,9 +134,7 @@ bool CS2VoiceFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, b
 
 uint64_t g_playerIds[64];
 
-bool CS2VoiceFix::Hook_SendNetMessage(CNetMessage* pData, NetChannelBufType_t bufType)
-{
-	CServerSideClient* client = META_IFACEPTR(CServerSideClient);
+bool FASTCALL Hook_SendNetMessage(CServerSideClient *pClient, CNetMessage *pData, NetChannelBufType_t bufType){
 
 	NetMessageInfo_t* info = pData->GetNetMessage()->GetNetMessageInfo();
 	if (info)
@@ -127,12 +146,11 @@ bool CS2VoiceFix::Hook_SendNetMessage(CNetMessage* pData, NetChannelBufType_t bu
 			auto playerSlot = msg->client();
 			//ConMsg("%i -> %i (%llu)\n", playerSlot, client->GetPlayerSlot().Get(), g_playerIds[client->GetPlayerSlot().Get()] + playerSlot);
 
-			msg->set_xuid(g_playerIds[client->GetPlayerSlot().Get()] + playerSlot);
+			msg->set_xuid(g_playerIds[pClient->GetPlayerSlot().Get()] + playerSlot);
 		}
 	}
 
-
-	RETURN_META_VALUE(MRES_IGNORED, true);
+	return g_pfnSendNetMessage(pClient, pData, bufType);
 }
 
 void CS2VoiceFix::Hook_OnClientConnected(CPlayerSlot slot, const char* pszName, uint64 xuid, const char* pszNetworkID, const char* pszAddress, bool bFakePlayer)
@@ -141,37 +159,22 @@ void CS2VoiceFix::Hook_OnClientConnected(CPlayerSlot slot, const char* pszName, 
 	g_randomSeed += 66;
 }
 
+void CS2VoiceFix::Hook_StartupServer(const GameSessionConfiguration_t& config, ISource2WorldSession*, const char*)
+{
+	Interfaces::g_pEntitySystem = GameEntitySystem();
+}
+
 bool CS2VoiceFix::Unload(char *error, size_t maxlen)
 {
 	SH_REMOVE_HOOK(IServerGameClients, OnClientConnected, Interfaces::gameclients, SH_MEMBER(this, &CS2VoiceFix::Hook_OnClientConnected), false);
-	SH_REMOVE_HOOK_ID(g_iSendNetMessage);
-	return true;
-}
+	SH_REMOVE_HOOK(INetworkServerService, StartupServer, g_pNetworkServerService, SH_MEMBER(this, &CS2VoiceFix::Hook_StartupServer), true);
 
-void CS2VoiceFix::AllPluginsLoaded()
-{
-}
+	if (g_pSendNetMessageHook)
+	{
+		funchook_uninstall(g_pSendNetMessageHook, 0);
+		funchook_destroy(g_pSendNetMessageHook);
+	}
 
-void CS2VoiceFix::OnLevelInit( char const *pMapName,
-									 char const *pMapEntities,
-									 char const *pOldLevel,
-									 char const *pLandmarkName,
-									 bool loadGame,
-									 bool background )
-{
-}
-
-void CS2VoiceFix::OnLevelShutdown()
-{
-}
-
-bool CS2VoiceFix::Pause(char *error, size_t maxlen)
-{
-	return true;
-}
-
-bool CS2VoiceFix::Unpause(char *error, size_t maxlen)
-{
 	return true;
 }
 
@@ -182,7 +185,7 @@ const char *CS2VoiceFix::GetLicense()
 
 const char *CS2VoiceFix::GetVersion()
 {
-	return "1.0.1";
+	return "1.0.2";
 }
 
 const char *CS2VoiceFix::GetDate()
@@ -197,7 +200,7 @@ const char *CS2VoiceFix::GetLogTag()
 
 const char *CS2VoiceFix::GetAuthor()
 {
-	return "Poggu";
+	return "Poggu, maintained by Slynx";
 }
 
 const char *CS2VoiceFix::GetDescription()
@@ -212,5 +215,5 @@ const char *CS2VoiceFix::GetName()
 
 const char *CS2VoiceFix::GetURL()
 {
-	return "https://poggu.me";
+	return "https://slynxdev.cz";
 }
