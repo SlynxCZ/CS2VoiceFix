@@ -91,7 +91,7 @@ CGlobalVars* GetGameGlobals()
 	return g_pNetworkServerService->GetIGameServer()->GetGlobals();
 }
 
-void SetupHook(CS2VoiceFix* plugin)
+void SetupHook()
 {
 	CModule engineModule(ROOTBIN, "engine2");
 
@@ -120,7 +120,7 @@ bool CS2VoiceFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, b
 	SH_ADD_HOOK(IServerGameClients, OnClientConnected, Interfaces::gameclients, SH_MEMBER(this, &CS2VoiceFix::Hook_OnClientConnected), false);
 	SH_ADD_HOOK(INetworkServerService, StartupServer, g_pNetworkServerService, SH_MEMBER(this, &CS2VoiceFix::Hook_StartupServer), true);
 
-	SetupHook(this);
+	SetupHook();
 
 	g_pCVar = Interfaces::icvar;
 	ConVar_Register( FCVAR_RELEASE | FCVAR_GAMEDLL );
@@ -215,5 +215,5 @@ const char *CS2VoiceFix::GetName()
 
 const char *CS2VoiceFix::GetURL()
 {
-	return "https://slynxdev.cz";
+	return "https://cs2.poggu.me, https://slynxdev.cz";
 }

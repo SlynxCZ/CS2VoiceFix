@@ -1,9 +1,16 @@
-# Xmake cache
-.xmake/
-build/
+/build/
+/vs/
+/linuxbuild/
+.ccls-cache/
+.cmake/
+cmake-build-*/
+cmake-build-steamrt-docker/
+cmake-build-relwithdebinfo-docker/
+.kdev4/
+generated/
+!**/protobuf/generated/
+output/
+dockerbuild/
+.idea/
 
-# MacOS Cache
-.DS_Store
-
-/.vs/
-/vsxmake2022/
+configs/addons/metamod/*.vdf
